@@ -11,16 +11,25 @@ class VoxelLoss(nn.Module):
         self.beta = beta
 
     def forward(self, rm, psm, pos_equal_one, neg_equal_one, targets):
-        p_pos = F.sigmoid(psm.permute(0, 2, 3, 1))
+        '''
+        for example, the origin voxel is of shape (25, 128, 103, 80, 24)
+        :param rm: [25, 14, 40, 24]
+        :param psm: [25, 2, 40, 24]
+        :param pos_equal_one: [25, 40, 24, 2]
+        :param neg_equal_one: [25, 40, 24, 2]
+        :param targets: [25, 14, 40, 24]
+        :return:
+        '''
+        p_pos = F.sigmoid(psm.permute(0, 2, 3, 1)) # [25, 40, 24, 2]
         rm = rm.permute(0, 2, 3, 1).contiguous()
-        rm = rm.view(rm.size(0), rm.size(1), rm.size(2), -1, 7)
+        rm = rm.view(rm.size(0), rm.size(1), rm.size(2), -1, 7) # [25, 40, 24, 2, 7]
         targets = targets.view(targets.size(0), targets.size(1),
-                               targets.size(2), -1, 7)
+                               targets.size(2), -1, 7) # [25, 40, 24, 2, 7]
         pos_equal_one_for_reg = pos_equal_one.unsqueeze(
-            pos_equal_one.dim()).expand(-1, -1, -1, -1, 7)
+            pos_equal_one.dim()).expand(-1, -1, -1, -1, 7) # [25, 40, 24, 2, 7]
 
-        rm_pos = rm * pos_equal_one_for_reg
-        targets_pos = targets * pos_equal_one_for_reg
+        rm_pos = rm * pos_equal_one_for_reg # [25, 40, 24, 2, 7]
+        targets_pos = targets * pos_equal_one_for_reg # [25, 40, 24, 2, 7]
 
         cls_pos_loss = -pos_equal_one * torch.log(p_pos + 1e-6)
         cls_pos_loss = cls_pos_loss.sum() / (pos_equal_one.sum() + 1e-6)

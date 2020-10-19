@@ -4,9 +4,6 @@ import torch
 from torch.autograd import Variable
 
 
-# from config import config as cfg
-
-
 # conv2d + bn + relu
 class Conv2d(nn.Module):
 
@@ -62,10 +59,10 @@ class FCN(nn.Module):
 
     def forward(self, x):
         # KK is the stacked k across batch
-        kk, t, _, _ = x.shape
-        x = self.linear(x.view(kk * t, -1))
+        H, W, D, _ = x.shape
+        x = self.linear(x.view(H * W * D, -1))
         x = F.relu(self.bn(x))
-        return x.view(kk, t, -1)
+        return x.view(H, W, D, -1)
 
 
 # Voxel Feature Encoding layer
@@ -81,11 +78,12 @@ class VFE(nn.Module):
         # point-wise feauture
         pwf = self.fcn(x)
         # locally aggregated feature
-        laf = torch.max(pwf, 1)[0].unsqueeze(1).repeat(1, 1, 1)
+        laf = torch.max(pwf, 3)[0].unsqueeze(3).repeat(1, 1, 1, self.units)
         # point-wise concat feature
-        pwcf = torch.cat((pwf, laf), dim=2)
+        pwcf = torch.cat((pwf, laf), dim=3)
         # apply mask
-        mask = mask.unsqueeze(2).repeat(1, 1, self.units * 2)
+        mask = mask.unsqueeze(3)
+        mask = mask.repeat(1, 1, 1, self.units * 2)
         pwcf = pwcf * mask.float()
 
         return pwcf
@@ -96,20 +94,23 @@ class SVFE(nn.Module):
 
     def __init__(self):
         super(SVFE, self).__init__()
-        self.vfe = VFE(32, 128)
+        self.vfe_1 = VFE(6, 32)
+        self.vfe_2 = VFE(32, 128)
         self.fcn = FCN(128, 128)
 
     def forward(self, x):
-        mask = torch.ne(torch.max(x, 2)[0], 0)
-        x = self.vfe(x, mask)
+        mask = torch.ne(torch.max(x, 3)[0], 0)
+        x = self.vfe_1(x, mask)
+        x = self.vfe_2(x, mask)
         x = self.fcn(x)
         # element-wise max pooling
-        x = torch.max(x, 1)[0]
+        # x = torch.max(x, 1)[0]
         return x
 
 
 # Convolutional Middle Layer
 class CML(nn.Module):
+
     def __init__(self):
         super(CML, self).__init__()
         self.conv3d_1 = Conv3d(128, 64, 3, s=(2, 1, 1), p=(1, 1, 1))
@@ -125,6 +126,7 @@ class CML(nn.Module):
 
 # Region Proposal Network
 class RPN(nn.Module):
+
     def __init__(self):
         super(RPN, self).__init__()
         self.block_1 = [Conv2d(128, 128, 3, 2, 1)]
@@ -172,41 +174,20 @@ class VoxelNet(nn.Module):
         self.cml = CML()
         self.rpn = RPN()
 
-    # def voxel_indexing(self, sparse_features, coords):
-    #     dim = sparse_features.shape[-1]
-    #
-    #     dense_feature = Variable(
-    #         torch.zeros(dim, cfg.N, cfg.D, cfg.H, cfg.W).cuda())
-    #
-    #     dense_feature[:, coords[:, 0], coords[:, 1], coords[:, 2],
-    #     coords[:, 3]] = sparse_features
-    #
-    #     return dense_feature.transpose(0, 1)
-
-    # def forward(self, voxel_features, voxel_coords):
-    #     # feature learning network
-    #     vwfs = self.svfe(voxel_features)
-    #     vwfs = self.voxel_indexing(vwfs, voxel_coords)
-    #
-    #     # convolutional middle network
-    #     cml_out = self.cml(vwfs)
-    #
-    #     # region proposal network
-    #
-    #     # merge the depth and feature dim into one, output probability score map and regression map
-    #     psm, rm = self.rpn(cml_out.view(cfg.N, -1, cfg.H, cfg.W))
-    #
-    #     return psm, rm
     def forward(self, voxel):
         # feature learning network
         vwfs = self.svfe(voxel)
-
+        vwfs = vwfs.permute(3, 0, 1, 2).unsqueeze(0).repeat(2, 1, 1, 1, 1)
+        print("vwfs: "+str(vwfs.shape))
         # convolutional middle network
         cml_out = self.cml(vwfs)
+        print("cml: "+str(cml_out.shape))
 
         # region proposal network
-
         # merge the depth and feature dim into one, output probability score map and regression map
+        # cml.shape = [25, 128, 80, 48]
+        # psm.shape = [25, 2, 40, 24]
+        # rm.shape = [25, 14, 40, 24]
         psm, rm = self.rpn(
-            cml_out.view(voxel.shape[0], -1, voxel.shape[1], voxel.shpae[2]))
+            cml_out.view(cml_out.shape[2], -1, cml_out.shape[3], cml_out.shape[4]))
         return psm, rm
