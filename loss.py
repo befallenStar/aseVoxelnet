@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class VoxelLoss(nn.Module):
@@ -12,24 +11,25 @@ class VoxelLoss(nn.Module):
 
     def forward(self, rm, psm, pos_equal_one, neg_equal_one, targets):
         '''
-        for example, the origin voxel is of shape (25, 128, 103, 80, 24)
+        for example, the origin voxel is of shape (25, 128, 104, 80, 24)
         :param rm: [25, 14, 40, 24]
         :param psm: [25, 2, 40, 24]
         :param pos_equal_one: [25, 40, 24, 2]
         :param neg_equal_one: [25, 40, 24, 2]
-        :param targets: [25, 14, 40, 24]
+        :param targets: [25, 40, 24, 14]
         :return:
         '''
-        p_pos = F.sigmoid(psm.permute(0, 2, 3, 1)) # [25, 40, 24, 2]
+        p_pos = torch.sigmoid(psm.permute(0, 2, 3, 1))  # [25, 40, 24, 2]
         rm = rm.permute(0, 2, 3, 1).contiguous()
-        rm = rm.view(rm.size(0), rm.size(1), rm.size(2), -1, 7) # [25, 40, 24, 2, 7]
+        rm = rm.view(rm.size(0), rm.size(1), rm.size(2), -1,
+                     7)  # [25, 40, 24, 2, 7]
         targets = targets.view(targets.size(0), targets.size(1),
-                               targets.size(2), -1, 7) # [25, 40, 24, 2, 7]
+                               targets.size(2), -1, 7)  # [25, 40, 24, 2, 7]
         pos_equal_one_for_reg = pos_equal_one.unsqueeze(
-            pos_equal_one.dim()).expand(-1, -1, -1, -1, 7) # [25, 40, 24, 2, 7]
+            pos_equal_one.dim()).expand(-1, -1, -1, -1, 7)  # [25, 40, 24, 2, 7]
 
-        rm_pos = rm * pos_equal_one_for_reg # [25, 40, 24, 2, 7]
-        targets_pos = targets * pos_equal_one_for_reg # [25, 40, 24, 2, 7]
+        rm_pos = rm * pos_equal_one_for_reg  # [25, 40, 24, 2, 7]
+        targets_pos = targets * pos_equal_one_for_reg  # [25, 40, 24, 2, 7]
 
         cls_pos_loss = -pos_equal_one * torch.log(p_pos + 1e-6)
         cls_pos_loss = cls_pos_loss.sum() / (pos_equal_one.sum() + 1e-6)
@@ -37,7 +37,7 @@ class VoxelLoss(nn.Module):
         cls_neg_loss = -neg_equal_one * torch.log(1 - p_pos + 1e-6)
         cls_neg_loss = cls_neg_loss.sum() / (neg_equal_one.sum() + 1e-6)
 
-        reg_loss = self.smoothl1loss(rm_pos, targets_pos)
-        reg_loss = reg_loss / (pos_equal_one.sum() + 1e-6)
+        loc_loss = self.smoothl1loss(rm_pos, targets_pos)
+        loc_loss = loc_loss / (pos_equal_one.sum() + 1e-6)
         conf_loss = self.alpha * cls_pos_loss + self.beta * cls_neg_loss
-        return conf_loss, reg_loss
+        return conf_loss, loc_loss

@@ -7,8 +7,8 @@ from loader.pointclouds_to_voxelgrid import *
 from loader.visualize_npy import visualization
 
 colors = {1: (1, 1, 1), 6: (.5, .5, .5), 7: (0, 0, 1),
-          8: (1, 1, 0), 16: (1, 0, 0),17:(0,1,0)}
-atoms_vector = [1, 6, 7, 8, 16,17]
+          8: (1, 1, 0), 16: (1, 0, 0), 17: (0, 1, 0)}
+atoms_vector = [1, 6, 7, 8, 16, 17]
 
 
 def load_atoms(cid=None, smiles=None) -> Atoms:
@@ -36,7 +36,7 @@ def load(atoms: Atoms):
     return pointcloud
 
 
-def load_voxel(atoms, mag_coeff=20, sigma=1,threshold=0.7):
+def load_voxel(atoms, mag_coeff=20, sigma=1, threshold=0.7):
     pointcloud = load(atoms)
     data_loader = DataLoader(pointcloud)
     full_mat = data_loader(mag_coeff=mag_coeff, sigma=sigma)
@@ -50,12 +50,28 @@ def load_voxel(atoms, mag_coeff=20, sigma=1,threshold=0.7):
     (W_new - W) >> 1:((W_new - W) >> 1) + W, :] = full_mat
     # psm: [(D_new>>2) - 1, 2, H_new>>1, W_new>>1]
     # rm: [(D_new>>2) - 1, 14, H_new>>1, W_new>>1]
-    psm_true=voxel>=threshold
-    rm_true=voxel<threshold
-    target_true=voxel==1
-    psm=np.zeros([(D_new>>2) - 1, 2, H_new>>1, W_new>>1])
-    rm=np.zeros([(D_new>>2) - 1, 14, H_new>>1, W_new>>1])
-    return voxel
+    pos_equal_true = voxel >= threshold
+    neg_equal_true = voxel < threshold
+    targets_true = voxel == 1
+    pos_equal_one = np.zeros([(D_new >> 2) - 1, H_new >> 1, W_new >> 1, 2])
+    neg_equal_one = np.zeros([(D_new >> 2) - 1, H_new >> 1, W_new >> 1, 2])
+    targets = np.zeros([(D_new >> 2) - 1, H_new >> 1, W_new >> 1, 14])
+    for i in range(0, D_new-4, 4):
+        for j in range(0, H_new, 2):
+            for k in range(0, W_new, 2):
+                for c in range(2):
+                    if pos_equal_true[i:i + 4, j:j + 2, k:k + 2,
+                                   c:c + C // 2].sum():
+                        pos_equal_one[i//4, j//2, k//2, c] = 1
+                for f in range(0,14,7):
+                    if targets_true[i:i + 4, j:j + 2, k:k + 2,
+                                   f:f + 7].sum():
+                        targets[i//4, j//2, k//2, f] = 1
+    neg_equal_one[pos_equal_one==0]=1
+    # print(pos_equal_one)
+    # print(neg_equal_one)
+    # print(targets)
+    return voxel, pos_equal_one,neg_equal_one,targets
 
 
 def main():

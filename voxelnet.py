@@ -1,7 +1,6 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch
-from torch.autograd import Variable
 
 
 # conv2d + bn + relu
@@ -178,10 +177,10 @@ class VoxelNet(nn.Module):
         # feature learning network
         vwfs = self.svfe(voxel)
         vwfs = vwfs.permute(3, 0, 1, 2).unsqueeze(0).repeat(2, 1, 1, 1, 1)
-        print("vwfs: "+str(vwfs.shape))
+        # print("vwfs: " + str(vwfs.shape))
         # convolutional middle network
         cml_out = self.cml(vwfs)
-        print("cml: "+str(cml_out.shape))
+        # print("cml: " + str(cml_out.shape))
 
         # region proposal network
         # merge the depth and feature dim into one, output probability score map and regression map
@@ -189,5 +188,6 @@ class VoxelNet(nn.Module):
         # psm.shape = [25, 2, 40, 24]
         # rm.shape = [25, 14, 40, 24]
         psm, rm = self.rpn(
-            cml_out.view(cml_out.shape[2], -1, cml_out.shape[3], cml_out.shape[4]))
+            cml_out.view(cml_out.shape[2], -1, cml_out.shape[3],
+                         cml_out.shape[4]))
         return psm, rm

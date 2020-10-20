@@ -1,18 +1,18 @@
 # -*- encoding: utf-8 -*-
-import torch.nn as nn
-import torch
-from torch.autograd import Variable
-import torch.utils.data as data
 import time
-from voxelnet import VoxelNet
-from loss import VoxelLoss
-import torch.optim as optim
-import torch.nn.init as init
-import numpy as np
-import torch.backends.cudnn
-from pointcloud2voxel import load_voxel, load_atoms, load
 
-import cv2
+import matplotlib.pyplot as plt
+import torch
+import torch.backends.cudnn
+import torch.nn as nn
+import torch.nn.init as init
+import torch.optim as optim
+from torch.autograd import Variable
+
+from loader.data_loading import load_db
+from loss import VoxelLoss
+from pointcloud2voxel import load_voxel
+from voxelnet import VoxelNet
 
 
 def weights_init(m):
@@ -31,67 +31,71 @@ def train():
     print('Initializing weights...')
     net.apply(weights_init)
     return net
-    # print(net)
-    # define optimizer
-    # optimizer = optim.SGD(net.parameters(), lr=0.01)
-    # define loss function
-    # criterion = VoxelLoss(alpha=1.5, beta=1)
 
 
 def main():
     try:
         net = train()
-        # 3, 7, 11, 12, 13, 19, 21, 22, 29, 33, 34, 35, 44, 45, 49
-        cid = 33
-        atoms = load_atoms(cid=cid)
-        voxel = load_voxel(atoms, mag_coeff=30, sigma=1, threshold=0.7)
-        print("voxel: " + str(voxel.shape))
-        # print(voxel==1)
-        psm, rm = net.forward(torch.from_numpy(voxel).float())
-        # probability score map and regression map
-        print('probability score map: ' + str(psm.shape))
-        print('regression map: ' + str(rm.shape))
+        # cid = 33
+        # atoms = load_atoms(cid=cid)
+        atomses = load_db(path='ase_data', ase_db='ase-100.db')
+        # define optimizer
+        optimizer = optim.SGD(net.parameters(), lr=0.01)
+        # define loss function
+        criterion = VoxelLoss(alpha=1.5, beta=1)
+        losses, conf_losses, loc_losses = [], [], []
+
+        for atoms in atomses:
+            voxel, pos_equal_one, neg_equal_one, targets = load_voxel(atoms,
+                                                                      mag_coeff=30,
+                                                                      sigma=1,
+                                                                      threshold=0.7)
+            # print("voxel: " + str(voxel.shape))
+            # wrapper to variable
+            voxel_features = Variable(torch.FloatTensor(voxel))
+            pos_equal_one = Variable(torch.FloatTensor(pos_equal_one))
+            neg_equal_one = Variable(torch.FloatTensor(neg_equal_one))
+            targets = Variable(torch.FloatTensor(targets))
+            # zero the parameter gradients
+            optimizer.zero_grad()
+
+            # forward
+            t0 = time.time()
+            psm, rm = net(voxel_features)
+
+            # calculate loss
+            conf_loss, loc_loss = criterion(rm, psm, pos_equal_one,
+                                            neg_equal_one, targets)
+            loss = conf_loss + loc_loss
+
+            # backward
+            loss.backward()
+            optimizer.step()
+            t1 = time.time()
+
+            print('Timer: %.4f sec.' % (t1 - t0))
+            print('Loss: %.4f || Conf Loss: %.4f || Loc Loss: %.4f' % (
+                loss.data, conf_loss.data, loc_loss.data))
+            losses.append(loss.data)
+            conf_losses.append(conf_loss.data)
+            loc_losses.append(loc_loss.data)
+
+            # # print(voxel==1)
+            # psm, rm = net.forward(torch.from_numpy(voxel).float())
+            # # probability score map and regression map
+            # print('probability score map: ' + str(psm.shape))
+            # print('regression map: ' + str(rm.shape))
+        # print(losses)
+        # print(conf_losses)
+        # print(loc_losses)
+        x = [i for i in range(len(atomses))]
+        plt.plot(x, losses, color='r', linestyle='-')
+        plt.plot(x, conf_losses, color='g', linestyle='--')
+        plt.plot(x, loc_losses, color='b', linestyle='-.')
+        plt.show()
     except ValueError as e:
         print(str(e))
 
 
 if __name__ == '__main__':
     main()
-
-    # for iteration in range(10000):
-    #     if (not batch_iterator) or (iteration % epoch_size == 0):
-    #         # create batch iterator
-    #         batch_iterator = iter(data_loader)
-    #
-    #     voxel_features, voxel_coords, pos_equal_one, neg_equal_one, targets, images, calibs, ids = next(batch_iterator)
-    #
-    #     # wrapper to variable
-    #     voxel_features = Variable(torch.cuda.FloatTensor(voxel_features))
-    #     pos_equal_one = Variable(torch.cuda.FloatTensor(pos_equal_one))
-    #     neg_equal_one = Variable(torch.cuda.FloatTensor(neg_equal_one))
-    #     targets = Variable(torch.cuda.FloatTensor(targets))
-    #
-    #     # zero the parameter gradients
-    #     optimizer.zero_grad()
-    #
-    #     # forward
-    #     t0 = time.time()
-    #     psm,rm = net(voxel_features, voxel_coords)
-    #
-    #     # calculate loss
-    #     conf_loss, reg_loss = criterion(rm, psm, pos_equal_one, neg_equal_one, targets)
-    #     loss = conf_loss + reg_loss
-    #
-    #     # backward
-    #     loss.backward()
-    #     optimizer.step()
-    #
-    #     t1 = time.time()
-    #
-    #     print('Timer: %.4f sec.' % (t1 - t0))
-    #     print('iter ' + repr(iteration) + ' || Loss: %.4f || Conf Loss: %.4f || Loc Loss: %.4f' % \
-    #           (loss.data[0], conf_loss.data[0], reg_loss.data[0]))
-    #
-    #     # visualization
-    #     #draw_boxes(rm, psm, ids, images, calibs, 'pred')
-    #     draw_boxes(targets.data, pos_equal_one.data, images, calibs, ids,'true')
