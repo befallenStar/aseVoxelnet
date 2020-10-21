@@ -93,7 +93,7 @@ class SVFE(nn.Module):
 
     def __init__(self):
         super(SVFE, self).__init__()
-        self.vfe_1 = VFE(6, 32)
+        self.vfe_1 = VFE(7, 32)
         self.vfe_2 = VFE(32, 128)
         self.fcn = FCN(128, 128)
 

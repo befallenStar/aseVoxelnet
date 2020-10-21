@@ -16,20 +16,21 @@ def load_db(path='../data', ase_db='ase.db'):
     return atomses
 
 
-def merge(path='../ase_data', ase_db='ase.db'):
+def merge(datapath='../data',destination='../ase_data', ase_db='ase.db'):
     atomses = []
-    for file in os.listdir(path):
+    for file in os.listdir(datapath):
         # print(file)
-        filepath = os.path.join(path, file)
+        filepath = os.path.join(datapath, file)
         conn = connect(filepath)
         for row in conn.select():
             atoms = row.toatoms()
             atomses.append(atoms)
 
     for atoms in atomses:
-        ase_path = os.path.join(path, ase_db)
+        ase_path = os.path.join(destination, ase_db)
         conn = connect(ase_path)
         conn.write(atoms)
+    print("{} atoms have been merged".format(len(atomses)))
 
 
 def main():

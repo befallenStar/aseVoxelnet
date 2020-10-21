@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 import numpy as np
 
-atoms_vector = [1, 6, 7, 8, 16,17]
+atoms_vector = [1, 6, 7, 8, 15, 16, 17]
 
 
 class DataLoader:
