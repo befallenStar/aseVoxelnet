@@ -87,7 +87,7 @@ def main():
         plt.plot(x, conf_losses, color='g', linestyle='--')
         plt.plot(x, loc_losses, color='b', linestyle='-.')
         plt.show()
-        torch.save(net,'model/aseVoxelNet.pkl')
+        torch.save(net,'model/aseVoxelNet-1.pkl')
     except ValueError as e:
         print(str(e))
 

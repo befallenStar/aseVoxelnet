@@ -11,7 +11,7 @@ np.set_printoptions(suppress=True)
 
 
 def main():
-    net_path = 'model/aseVoxelNet.pkl'
+    net_path = 'model/aseVoxelNet-1.pkl'
     net = torch.load(net_path)
 
     atoms = load_atoms(cid=101)
@@ -25,20 +25,20 @@ def main():
     targets = Variable(torch.FloatTensor(targets))
 
     psm, rm = net(voxel_features)
-    # D,_,H,W=psm.shape
-    # psm=psm.detach().reshape([D,H,W,-1])
-    # print(psm.detach().numpy())
-    # print('-'*50)
-    # rm=rm.detach().reshape([D,H,W,-1])
-    # print(rm.detach().numpy())
+    D,_,H,W=psm.shape
+    psm=psm.detach().reshape([D,H,W,-1])
+    print(psm.detach().numpy())
+    print('-'*50)
+    rm=rm.detach().reshape([D,H,W,-1])
+    print(rm.detach().numpy())
 
-    criterion = VoxelLoss(alpha=1.5, beta=1)
-    conf_loss, loc_loss = criterion(rm, psm, pos_equal_one,
-                                    neg_equal_one, targets)
-    loss = conf_loss + loc_loss
-    print(conf_loss)
-    print(loc_loss)
-    print(loss)
+    # criterion = VoxelLoss(alpha=1.5, beta=1)
+    # conf_loss, loc_loss = criterion(rm, psm, pos_equal_one,
+    #                                 neg_equal_one, targets)
+    # loss = conf_loss + loc_loss
+    # print(conf_loss)
+    # print(loc_loss)
+    # print(loss)
 
 
 if __name__ == '__main__':
