@@ -50,7 +50,6 @@ def load_voxel(atoms, mag_coeff=20, sigma=1, threshold=0.7):
     # psm: [(D_new>>2) - 1, 2, H_new>>1, W_new>>1]
     # rm: [(D_new>>2) - 1, 14, H_new>>1, W_new>>1]
     pos_equal_true = voxel >= threshold
-    neg_equal_true = voxel < threshold
     targets_true = voxel == 1
     pos_equal_one = np.zeros([(D_new >> 2) - 1, H_new >> 1, W_new >> 1, 2])
     neg_equal_one = np.zeros([(D_new >> 2) - 1, H_new >> 1, W_new >> 1, 2])
