@@ -10,9 +10,8 @@ import torch.optim as optim
 from torch.autograd import Variable
 
 from loader.data_loading import load_db
-from loss import VoxelLoss
 from pointcloud2voxel import load_voxel
-from voxelnet import VoxelNet
+from voxelnet import SVFE
 
 
 def weights_init(m):
@@ -23,71 +22,72 @@ def weights_init(m):
 
 def main():
     try:
-        net = VoxelNet()
+        feature_length = 64
+        # load atoms of ase format from ase.db
+        atomses = load_db(path='ase_data', ase_db='ase-100.db')
 
+        # create a VoxelNet object
+        # feature_length should be confirmed first, equals the length of the result
+        net = SVFE(feature_length)
         net.train()
-
         # initialization
         print('Initializing weights...')
         net.apply(weights_init)
-        # cid = 33
-        # atoms = load_atoms(cid=cid)
-        atomses = load_db(path='ase_data', ase_db='ase-100.db')
+
+        # use the basic loss function
+
+        # criterion=nn.L1Loss()
+        # criterion=nn.SmoothL1Loss()
+        criterion = nn.MSELoss()
+
         # define optimizer
         optimizer = optim.SGD(net.parameters(), lr=0.01)
         # define loss function
-        criterion = VoxelLoss(alpha=1.5, beta=1)
-        losses, conf_losses, loc_losses = [], [], []
+        losses = []
 
+        # record the time cost
         t0 = time.time()
         for atoms in atomses:
-            voxel, pos_equal_one, neg_equal_one, targets = load_voxel(atoms,
-                                                                      mag_coeff=30,
-                                                                      sigma=1,
-                                                                      threshold=0.7)
+            # iterate the atoms
+            voxel = load_voxel(atoms, mag_coeff=30, sigma=1)
             # print("voxel: " + str(voxel.shape))
             # wrapper to variable
             voxel_features = Variable(torch.FloatTensor(voxel))
-            pos_equal_one = Variable(torch.FloatTensor(pos_equal_one))
-            neg_equal_one = Variable(torch.FloatTensor(neg_equal_one))
-            targets = Variable(torch.FloatTensor(targets))
+
+            # use initial charges as a kind of feature to feed in loss functions
+            charges = list(atoms.get_initial_charges())
+            charges.extend([0 for _ in range(feature_length - len(charges))])
+            charges = torch.Tensor(charges)
+
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # forward
-            psm, rm = net(voxel_features)
+            vwfs = net(voxel_features)
 
             # calculate loss
-            conf_loss, loc_loss = criterion(rm, psm, pos_equal_one,
-                                            neg_equal_one, targets)
-            loss = conf_loss + loc_loss
+            loss = criterion(vwfs, charges)
 
             # backward
             loss.backward()
             optimizer.step()
-            print('Loss: %.4f || Conf Loss: %.4f || Loc Loss: %.4f' % (
-                loss.data, conf_loss.data, loc_loss.data))
+            print('Loss: %.4f' % (loss.data))
             losses.append(loss.data)
-            conf_losses.append(conf_loss.data)
-            loc_losses.append(loc_loss.data)
 
-            # # print(voxel==1)
-            # psm, rm = net.forward(torch.from_numpy(voxel).float())
-            # # probability score map and regression map
-            # print('probability score map: ' + str(psm.shape))
-            # print('regression map: ' + str(rm.shape))
+            # predicted feature
+            # print(vwfs)
 
-        # print(losses)
-        # print(conf_losses)
-        # print(loc_losses)
+        print(losses)
         t1 = time.time()
         print('Timer: %.4f sec.' % (t1 - t0))
+
+        # plot the loss curve
         x = [i for i in range(len(atomses))]
         plt.plot(x, losses, color='r', linestyle='-')
-        plt.plot(x, conf_losses, color='g', linestyle='--')
-        plt.plot(x, loc_losses, color='b', linestyle='-.')
         plt.show()
-        torch.save(net,'model/aseVoxelNet-1.pkl')
+
+        # save the model
+        # torch.save(net,'model/aseVoxelNet-1.pkl')
     except ValueError as e:
         print(str(e))
 

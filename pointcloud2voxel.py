@@ -35,7 +35,7 @@ def load(atoms: Atoms):
     return pointcloud
 
 
-def load_voxel(atoms, mag_coeff=20, sigma=1, threshold=0.7):
+def load_voxel(atoms, mag_coeff=20, sigma=1):
     pointcloud = load(atoms)
     data_loader = DataLoader(pointcloud)
     full_mat = data_loader(mag_coeff=mag_coeff, sigma=sigma)
@@ -47,25 +47,7 @@ def load_voxel(atoms, mag_coeff=20, sigma=1, threshold=0.7):
     voxel[(D_new - D) >> 1:((D_new - D) >> 1) + D,
     (H_new - H) >> 1:((H_new - H) >> 1) + H,
     (W_new - W) >> 1:((W_new - W) >> 1) + W, :] = full_mat
-    # psm: [(D_new>>2) - 1, 2, H_new>>1, W_new>>1]
-    # rm: [(D_new>>2) - 1, 14, H_new>>1, W_new>>1]
-    pos_equal_true = voxel >= threshold
-    targets_true = voxel == 1
-    pos_equal_one = np.zeros([(D_new >> 2) - 1, H_new >> 1, W_new >> 1, 1])
-    neg_equal_one = np.zeros([(D_new >> 2) - 1, H_new >> 1, W_new >> 1, 1])
-    targets = np.zeros([(D_new >> 2) - 1, H_new >> 1, W_new >> 1, 7])
-    for i in range(0, D_new - 4, 4):
-        for j in range(0, H_new, 2):
-            for k in range(0, W_new, 2):
-                if pos_equal_true[i:i + 4, j:j + 2, k:k + 2, :].sum():
-                    pos_equal_one[i // 4, j // 2, k // 2, 0] = 1
-                if targets_true[i:i + 4, j:j + 2, k:k + 2, :].sum():
-                    targets[i // 4, j // 2, k // 2, :] = 1
-    neg_equal_one[pos_equal_one == 0] = 1
-    # print(pos_equal_one)
-    # print(neg_equal_one)
-    # print(targets)
-    return voxel, pos_equal_one, neg_equal_one, targets
+    return voxel
 
 
 def main():
