@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 import numpy as np
 
-atoms_vector = [1, 6, 7, 8, 15, 16, 17]
+# atoms_vector = [1, 6, 7, 8, 15, 16, 17]
 
 
 class DataLoader:
@@ -29,11 +29,11 @@ class DataLoader:
                               [(hx - lx) * magnifier + 1,
                                (hy - ly) * magnifier + 1,
                                (hz - lz) * magnifier + 1]))
-        threeD_xyz = np.zeros(shape=[dx, dy, dz, len(atoms_vector)],
+        threeD_xyz = np.zeros(shape=[dx, dy, dz, 94],
                               dtype=np.float32)
         for itm in full_list:
             x, y, z = itm[[self.x, self.y, self.z]]
-            idx = atoms_vector.index(int(itm[-1]))
+            idx = int(itm[-1])
             threeD_xyz[int((x - lx) * magnifier)][
                 int((y - ly) * magnifier)][
                 int((z - lz) * magnifier)][idx] = 1.

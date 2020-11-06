@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 import time
+from itertools import permutations
 
 import matplotlib.pyplot as plt
 import torch
@@ -22,9 +23,9 @@ def weights_init(m):
 
 def main():
     try:
-        feature_length = 64
+        feature_length = 128
         # load atoms of ase format from ase.db
-        atomses = load_db(path='ase_data', ase_db='ase-100.db')
+        atomses = load_db(path='ase_data', ase_db='ase.db')
 
         # create a VoxelNet object
         # feature_length should be confirmed first, equals the length of the result
@@ -48,34 +49,35 @@ def main():
         # record the time cost
         t0 = time.time()
         for atoms in atomses:
-            # iterate the atoms
-            voxel = load_voxel(atoms, mag_coeff=30, sigma=1)
-            # print("voxel: " + str(voxel.shape))
-            # wrapper to variable
-            voxel_features = Variable(torch.FloatTensor(voxel))
+            for rotate in permutations([0,90,180,270],3):
+                # iterate the atoms
+                voxel = load_voxel(atoms, mag_coeff=30, sigma=1,rotate=rotate)
+                # print("voxel: " + str(voxel.shape))
+                # wrapper to variable
+                voxel_features = Variable(torch.FloatTensor(voxel))
 
-            # use initial charges as a kind of feature to feed in loss functions
-            charges = list(atoms.get_initial_charges())
-            charges.extend([0 for _ in range(feature_length - len(charges))])
-            charges = torch.Tensor(charges)
+                # use initial charges as a kind of feature to feed in loss functions
+                charges = list(atoms.get_initial_charges())
+                charges.extend([0 for _ in range(feature_length - len(charges))])
+                charges = torch.Tensor(charges)
 
-            # zero the parameter gradients
-            optimizer.zero_grad()
+                # zero the parameter gradients
+                optimizer.zero_grad()
 
-            # forward
-            vwfs = net(voxel_features)
+                # forward
+                vwfs = net(voxel_features)
 
-            # calculate loss
-            loss = criterion(vwfs, charges)
+                # calculate loss
+                loss = criterion(vwfs, charges)
 
-            # backward
-            loss.backward()
-            optimizer.step()
-            print('Loss: %.4f' % (loss.data))
-            losses.append(loss.data)
+                # backward
+                loss.backward()
+                optimizer.step()
+                print('Loss: %.4f' % (loss.data))
+                losses.append(loss.data)
 
-            # predicted feature
-            # print(vwfs)
+                # predicted feature
+                # print(vwfs)
 
         print(losses)
         t1 = time.time()

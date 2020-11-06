@@ -6,7 +6,7 @@ from ase.db import connect
 from pointcloud2voxel import load_atoms
 
 
-def load_db(path='../data', ase_db='ase.db'):
+def load_db(path='..\\data', ase_db='ase.db'):
     ase_path = os.path.join(path, ase_db)
     conn = connect(ase_path)
     atomses = []
@@ -16,7 +16,7 @@ def load_db(path='../data', ase_db='ase.db'):
     return atomses
 
 
-def merge(datapath='../data',destination='../ase_data', ase_db='ase.db'):
+def merge(datapath='..\\data',destination='..\\ase_data', ase_db='ase.db'):
     atomses = []
     for file in os.listdir(datapath):
         # print(file)
@@ -34,9 +34,9 @@ def merge(datapath='../data',destination='../ase_data', ase_db='ase.db'):
 
 
 def main():
-    path = '../data'
+    path = '..\\data'
     # cids = [3, 7, 11, 12, 13, 19, 21, 22, 29, 33, 34, 35, 44, 45, 49]
-    for cid in range(100):
+    for cid in range(1000):
         try:
             atoms = load_atoms(cid=cid + 1)
             # print('cid: ' + str(cid))
@@ -55,6 +55,6 @@ def main():
 
 if __name__ == '__main__':
     # main()
-    merge(ase_db='ase-100.db')
+    merge(ase_db='ase-1000.db')
     # atomses = load_db()
     # print(atomses)

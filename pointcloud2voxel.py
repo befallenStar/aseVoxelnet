@@ -24,19 +24,63 @@ def load_atoms(cid=None, smiles=None) -> Atoms:
     return compounds[0].atoms
 
 
-def load(atoms: Atoms):
+def rotate_point(point, rotate):
+    x, y, z = point
+    rotate_x, rotate_y, rotate_z = rotate
+    if rotate_z == 90:
+        x, y = y, -x
+    if rotate_z == 180:
+        x, y = -x, -y
+    if rotate_z == 270:
+        x, y = -y, x
+    if rotate_y == 90:
+        x, z = -z, x
+    if rotate_y == 180:
+        x, z = -z, -x
+    if rotate_y == 270:
+        x, z = z, -x
+    if rotate_x == 90:
+        y, z = z, -y
+    if rotate_x == 180:
+        y, z = -z, -y
+    if rotate_x == 270:
+        y, z = -z, y
+    return [x, y, z]
+
+
+def load(atoms: Atoms, rotate=None):
     print(atoms.symbols)
     pointcloud = []
     for step, number in enumerate(atoms.numbers):
         point = atoms.positions[step].tolist()
+        point = rotate_point(point, rotate)
         # point.extend(colors[number])
         point.append(number)
         pointcloud.append(point)
     return pointcloud
 
 
-def load_voxel(atoms, mag_coeff=20, sigma=1):
-    pointcloud = load(atoms)
+def load_voxel(atoms, mag_coeff=20, sigma=1, rotate=None):
+    """
+    turn an Atoms object to a voxel
+    :param atoms: Atoms object
+    :param mag_coeff: size of grids of voxel
+    :param sigma: the kernel of gaussian smooth
+    :param rotate: expand the dataset by rotating the atoms
+    :return: a voxel represent the molecule
+    """
+    if rotate:
+        if len(rotate) is not 3:
+            raise ValueError(
+                'the rotate should be (rotate_x, rotate_y, rotate_x)')
+        x, y, z = rotate
+        if not (x in [0, 90, 180, 270] and y in [0, 90, 180, 270] and z in [0,
+                                                                            90,
+                                                                            180,
+                                                                            270]):
+            raise ValueError(
+                'all the rotate angle should be in [0, 90, 180, 270]')
+    pointcloud = load(atoms,rotate)
     data_loader = DataLoader(pointcloud)
     full_mat = data_loader(mag_coeff=mag_coeff, sigma=sigma)
     D, H, W, C = full_mat.shape

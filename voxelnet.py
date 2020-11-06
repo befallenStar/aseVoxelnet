@@ -93,9 +93,9 @@ class SVFE(nn.Module):
 
     def __init__(self,cout):
         super(SVFE, self).__init__()
-        self.vfe_1 = VFE(7, cout//4)
+        self.vfe_1 = VFE(94, cout//4)
         self.vfe_2 = VFE(cout//4, cout)
-        self.fcn = FCN(64, 64)
+        self.fcn = FCN(cout, cout)
         self.avg_pool=nn.AdaptiveMaxPool2d((None,1))
 
     def forward(self, x):
